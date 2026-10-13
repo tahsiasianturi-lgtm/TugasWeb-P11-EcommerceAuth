@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tugas Rutin 11 (v4) — Marketplace Batik</title>
+<style>
+:root{--bg:#f4f2fb;--fg:#17143a;--mu:#6a668f;--cd:#fff;--bd:#dcd8f0;--ac:#4f46e5;--gd:#b8860b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e0c24;--fg:#ecebfa;--mu:#a5a2cf;--cd:#17143a;--bd:#2d2960}}
+:root[data-theme="dark"]{--bg:#0e0c24;--fg:#ecebfa;--mu:#a5a2cf;--cd:#17143a;--bd:#2d2960}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0 auto;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif;padding:16px;max-width:760px}
+h1{font-size:21px;margin:0}h2{font-size:16px;margin:0 0 8px}
+.sub{color:var(--mu);font-size:13px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+button,select{font:inherit;font-size:14px;padding:8px 12px;border-radius:10px;border:1px solid var(--bd);background:var(--cd);color:var(--fg)}
+button.on,.pri{background:var(--ac);border-color:var(--ac);color:#fff}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0}
+input{font:inherit;width:100%;box-sizing:border-box;padding:9px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--fg);margin:4px 0}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:12.5px}th,td{border-bottom:1px solid var(--bd);padding:6px 8px;text-align:left;white-space:nowrap}
+.term{background:#0f0f14;color:#9be29b;border-radius:10px;padding:10px;font:12.5px/1.5 monospace;white-space:pre-wrap;min-height:60px;max-height:260px;overflow:auto}
+.toast{padding:10px 12px;border-radius:10px;margin:8px 0;font-size:14px;border:1px solid}
+.t403{background:#dc262622;border-color:#dc2626}.t200{background:#16a34a22;border-color:#16a34a}
+.chip{font:12px monospace;padding:5px 8px}
+.rel{border-left:4px solid var(--gd);padding-left:10px;margin:8px 0;font-size:14px}
+pre{background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:10px;overflow-x:auto;font-size:12.5px}
+details{margin:6px 0}summary{font-weight:600;padding:8px 0}
+.y{color:#16a34a;font-weight:700}.n{color:#dc2626;font-weight:700}
+</style></head><body>
+<h1>🧵 Marketplace Batik — Tugas Rutin 11 (v4)</h1>
+<div class="sub">Database & Eloquent + Secure Auth. Simulasi di browser: seeder, relasi, Tinker, dan login dengan rate limiter.</div>
+<div class="tabs" id="tabs"></div>
+<div id="toast"></div>
+<div id="v"></div>
+<script>
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rp=n=>'Rp '+n.toLocaleString('id-ID');
+const cats=['Kemeja','Dress','Kain','Aksesoris'],tags=['handmade','tulis','cap','premium'];
+const motif=['Parang','Kawung','Mega Mendung','Truntum','Sidomukti','Sekar Jagad','Lasem','Cirebon','Pekalongan','Madura','Betawi','Sogan','Tujuh Rupa'];
+const users=[{id:1,name:'Owner',email:'admin@batik.test',role:'admin'},{id:2,name:'Sari',email:'editor@batik.test',role:'editor'},{id:3,name:'Budi',email:'user@batik.test',role:'user'}];
+let products=[],orders=[],ptag=[];
+function seed(n){products=Array.from({length:n},(_,i)=>({id:i+1,category_id:i%4+1,user_id:i%3+1,name:'Batik '+motif[i%13]+' '+(Math.floor(i/13)+1),price:(80+(i*53)%420)*1000,stock:(i*7)%24}));
+ ptag=products.flatMap((p,i)=>[{product_id:p.id,tag_id:i%4+1},...(i%3===0?[{product_id:p.id,tag_id:(i+1)%4+1}]:[])]);
+ orders=Array.from({length:Math.max(5,Math.floor(n/4))},(_,i)=>({id:i+1,user_id:3,items:[{product_id:(i*3)%n+1,qty:1+i%2,price:products[(i*3)%n].price}]}))}
+seed(52);
+let tab='seed',toast=null,me=null,fails=0,lock=false,log='Tekan tombol untuk menjalankan seeder.',rep=[],pidSel=1;
+const T={seed:'🌱 Seeder',rel:'🔗 Relasi',tink:'⌨️ Tinker',auth:'🔐 Auth',code:'💻 Kode'};
+const tbl=(h,r)=>`<div class="wrap"><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${r.map(x=>`<tr>${x.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</table></div>`;
+const V={
+seed:()=>`<div class="card"><h2>php artisan migrate:fresh --seed</h2><div class="sub">Jumlah produk: <b id="nv">${products.length}</b></div><input id="n" type="range" min="10" max="100" step="10" value="${Math.round(products.length/10)*10}" oninput="nv.textContent=this.value"><div class="row"><button class="pri" onclick="doSeed()">Jalankan seeder</button></div><div class="term" style="margin-top:8px">${esc(log)}</div></div>
+ <div class="card"><h2>products (8 pertama)</h2>${tbl(['id','name','category_id','user_id','price','stock'],products.slice(0,8).map(p=>[p.id,esc(p.name),p.category_id,p.user_id,rp(p.price),p.stock]))}</div>`,
+rel:()=>{const p=products.find(x=>x.id==pidSel)||products[0],o=users[p.user_id-1],t=ptag.filter(x=>x.product_id===p.id),oi=orders.flatMap(od=>od.items.filter(i=>i.product_id===p.id).map(i=>({o:od.id,q:i.qty})));
+ return `<div class="card"><h2>Pilih produk</h2><select id="ps" style="width:100%" onchange="pidSel=this.value;render()">${products.map(x=>`<option value="${x.id}" ${x.id===p.id?'selected':''}>#${x.id} ${esc(x.name)}</option>`).join('')}</select>
+ <div class="rel"><b>belongsTo(Category)</b><br>$product->category → ${cats[p.category_id-1]}</div>
+ <div class="rel"><b>belongsTo(User)</b><br>$product->user → ${o.name} (${o.role})</div>
+ <div class="rel"><b>belongsToMany(Tag)</b> via product_tag<br>$product->tags → ${t.map(x=>tags[x.tag_id-1]).join(', ')||'-'}</div>
+ <div class="rel"><b>hasMany(OrderItem)</b><br>${oi.length?oi.map(x=>`Order #${x.o} (qty ${x.q})`).join(', '):'belum pernah dipesan'}</div></div><div class="sub">Eager load: Product::with('category','user','tags')->find(${p.id})</div>`},
+tink:()=>`<div class="card"><h2>php artisan tinker</h2><div class="row"><input id="q" placeholder="Product::count()" style="flex:1" onkeydown="if(event.key==='Enter')runQ(this.value)"><button class="pri" onclick="runQ(document.getElementById('q').value)">Run</button></div><div class="row">${Object.keys(Q).map((k,i)=>`<button class="chip" onclick="runQ(Object.keys(Q)[${i}])">${esc(k.length>30?k.slice(0,28)+'…':k)}</button>`).join('')}</div><div class="term" style="margin-top:8px">${esc(rep.join('\n\n')||'Ketik query atau tekan chip.')}</div></div>`,
+auth:()=>{
+ if(me)return `<div class="card">Login sebagai <b>${me.name}</b> (${me.role}) · session aktif<div class="row"><button onclick="me=null;tn('t200','Logout: session dihancurkan.');render()">Logout</button></div></div>
+ <div class="card"><h2>PostPolicy untuk post milik Budi (user #3)</h2>${tbl(['aksi','hasil'],[['update',me.id===3||me.role==='editor'],['delete',me.id===3||me.role==='admin']].map(([a,ok])=>[a,ok?'<span class="y">✓ diizinkan</span>':'<span class="n">✗ 403</span>']))}</div>
+ <div class="card"><h2>Route protection</h2>${tbl(['route','hasil'],[['/dashboard',1],['/admin',me.role==='admin']].map(([r,ok])=>[r,ok?'<span class="y">200</span>':'<span class="n">403</span>']))}</div>`;
+ return `<div class="card"><h2>Login (Breeze)</h2><select id="lu" style="width:100%">${users.map(u=>`<option value="${u.id}">${u.email} (${u.role})</option>`).join('')}</select><input id="lp" type="password" placeholder="password (isi: password)"><div class="row"><button class="pri" onclick="login()">Login</button><button onclick="fails=0;lock=false;tn('t200','60 detik berlalu, limiter direset.');render()">⏱ Simulasi 60 detik</button></div><div class="sub">Percobaan gagal: ${fails}/5 ${lock?'· 🔒 TERKUNCI (rate limiter)':''}</div></div>`},
+code:()=>[['Migrations + FK',`$t->foreignId('category_id')->constrained()->cascadeOnDelete();
+$t->foreignId('user_id')->constrained()->cascadeOnDelete();
+$t->decimal('price', 12, 2);
+// order_items: order_id, product_id, qty, price; product_tag: pivot`],['Model & relasi',`class Product extends Model {
+    protected $fillable = ['category_id','user_id','name','price','stock'];
+    public function category() { return $this->belongsTo(Category::class); }
+    public function user()     { return $this->belongsTo(User::class); }
+    public function tags()     { return $this->belongsToMany(Tag::class); }
+    public function scopeAvailable($q) { return $q->where('stock','>',0); }
+}`],['Factory & seeder',`Product::factory()->count(52)->create();
+// php artisan migrate:fresh --seed`],['Breeze, role, policy',`composer require laravel/breeze --dev && php artisan breeze:install blade
+// users.role default 'user'; middleware EnsureRole (abort 403)
+Route::middleware(['auth','role:admin'])->prefix('admin')->group(...);
+public function update(User $u, Post $p): bool {
+    return $u->id === $p->user_id || $u->role === 'editor';
+}`]].map(([t,c])=>`<details><summary>${t}</summary><pre>${esc(c)}</pre></details>`).join('')};
+const Q={
+ "Product::count()":()=>products.length,
+ "Category::count()":()=>cats.length,
+ "User::count()":()=>users.length,
+ "Order::count()":()=>orders.length,
+ "Product::find(1)":()=>{const p=products[0];return `Product { id: 1, name: "${p.name}", price: ${p.price}, stock: ${p.stock} }`},
+ "Product::with('category')->first()":()=>{const p=products[0];return `Product { name: "${p.name}", category: Category { name: "${cats[p.category_id-1]}" } }`},
+ "Product::where('stock','<',5)->count()":()=>products.filter(p=>p.stock<5).length,
+ "Product::orderBy('price','desc')->first()":()=>{const p=[...products].sort((a,b)=>b.price-a.price)[0];return `Product { name: "${p.name}", price: ${p.price} }`},
+ "Product::whereRelation('category','name','Kain')->count()":()=>products.filter(p=>p.category_id===3).length};
+const norm=s=>s.replace(/\s+/g,'').replace(/"/g,"'").replace(/;$/,'');
+function runQ(s){const k=Object.keys(Q).find(x=>norm(x)===norm(s));rep.unshift('>>> '+s+'\n= '+(k?Q[k]():'ParseError: query tidak dikenali di simulasi. Pakai chip di bawah.'));rep=rep.slice(0,6);render()}
+function doSeed(){const n=+document.getElementById('n').value;seed(n);log=`INFO  Preparing database.\nDropping all tables ........ DONE\nRunning migrations (7 tabel) ... DONE\nSeeding: UserSeeder ......... DONE\nSeeding: CategorySeeder ..... DONE\nSeeding: ProductSeeder (${n}) ... DONE\nSeeding: OrderSeeder (${orders.length}) ..... DONE`;render()}
+function tn(c,m){toast=[c,m]}
+function login(){if(lock){tn('t403','429 Too Many Requests: coba lagi dalam 60 detik.');render();return}
+ const u=users.find(x=>x.id==document.getElementById('lu').value);
+ if(document.getElementById('lp').value!=='password'){fails++;if(fails>=5){lock=true;tn('t403','Terlalu banyak percobaan. Akun dikunci sementara (RateLimiter).')}else tn('t403','These credentials do not match our records.')}
+ else{fails=0;me=u;tn('t200','Login berhasil → redirect /dashboard.')}render()}
+function render(){document.getElementById('tabs').innerHTML=Object.entries(T).map(([k,l])=>`<button class="${k===tab?'on':''}" onclick="tab='${k}';toast=null;render()">${l}</button>`).join('');
+ document.getElementById('toast').innerHTML=toast?`<div class="toast ${toast[0]}">${esc(toast[1])}</div>`:'';toast=null;
+ document.getElementById('v').innerHTML=V[tab]()}
+render();
+</script></body></html>
